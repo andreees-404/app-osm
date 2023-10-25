@@ -3,112 +3,120 @@ package com.domaintest.mapstest
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
-import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import com.domaintest.mapstest.ui.theme.MapsTestTheme
 
+@Suppress("DEPRECATION")
 class MainActivity : ComponentActivity() {
 
-    private val TAG: String = "MAIN_ACTIVITY"
-    private val STORAGE_PERMISSION_CODE: Int = 1001
+    companion object {
+        private const val TAG: String = "MAIN_ACTIVITY"
+        private const val STORAGE_PERMISSION_CODE: Int = 100
+    }
 
-    private val storagePermission = false
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private val permissions = listOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION,
-        Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-        Manifest.permission.INTERNET)
 
+    private val locationPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+            Manifest.permission.INTERNET
+        )
+    } else {
+        listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.INTERNET
+        )
+    }
+
+    // Lista de permisos denegados
     private val deniedPerms = ArrayList<String>()
-    private val grantedPerms = ArrayList<String>()
+
+    // Permisos concedidos -> ALL
+    private var allGranted = false
 
 
 
     private val permissionsLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
+        ActivityResultContracts.RequestMultiplePermissions()
     ){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
-            if (Environment.isExternalStorageManager()){
-                Log.d(TAG, "permissionsLauncher: Permissions granted")
-                openMaps()
-            }
+        permissions ->
+        if (checkPermissions(permissions.keys.toList())){
+            allGranted = true
         } else {
-            Log.d(TAG, "permissionsLauncher: Permissions denied ")
-            toast("External storage permissions denied!")
+            permissions.keys.forEach {
+                deniedPerms.add(it)
+                Log.d(TAG, "Denied perm ${it}: ")
+            }
         }
     }
 
 
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             MapsTestTheme {
-                    openMaps()
-            }
-        }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private fun checkPermissions(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // This line return true or false
-            Environment.isExternalStorageManager()
-        } else {
-            // Sobre Android 11(R)
-            for (i in permissions) {
-                if (ContextCompat.checkSelfPermission(this, i) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    grantedPerms.add(i)
+                if (checkPermissions(locationPermissions)){
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Button(modifier = Modifier.padding(20.dp),onClick = {
+                            openMaps()
+                            finish()
+                            Log.d(TAG, "onCreate: permissions granted, initializating Activity")
+                        }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3083f0) )) {
+                            Text(text = "Mostrar ubicación")
+                        }
+                    }
+                    //openMaps()
+                    //finish()
+                    //
                 } else {
-                    // Existe al menos un permiso denegado
-                    deniedPerms.add(i)
+                    toast("Location permission denied, request!")
+                    try{
+                        requestPerms(deniedPerms)
+                    } catch (e: Exception){
+                        Log.d(TAG, "onCreate: ${e.message}")
+                    }
                 }
-                if (deniedPerms.isEmpty()) return true
             }
-
-            return false
-        }
-
-    }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private fun requestPerms(){
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R){
-            try {
-                Log.d(TAG, "request permissions: try")
-                val intent = Intent()
-                intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
-                val uri = Uri.fromParts("package", this.packageName, null)
-                intent.data = uri
-                permissionsLauncher.launch(intent)
-            } catch (e: Exception){
-                Log.d(TAG, "request permissions: ", e)
-                val intent = Intent()
-                intent.action = Settings.ACTION_LOCATION_SOURCE_SETTINGS
-                permissionsLauncher.launch(intent)
-
-            }
-        } else {
-            ActivityCompat.requestPermissions(this,
-                permissions.toTypedArray(), STORAGE_PERMISSION_CODE)
         }
     }
 
+    private fun checkPermissions(permissions: List<String>): Boolean {
+        return permissions.all {
+            permission -> ActivityCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+        }
+    }
 
+    private fun requestPerms(permissions: List<String>){
+        permissionsLauncher.launch(permissions.toTypedArray())
+    }
+
+
+    @Deprecated("Deprecated in Java")
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,

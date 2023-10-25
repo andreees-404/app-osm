@@ -11,7 +11,9 @@ import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
 import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import android.graphics.Rect as Rect
@@ -44,23 +46,31 @@ class MapsActivity : AppCompatActivity(), MapListener, GpsStatus.Listener {
         myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(this), mMap)
         controller = mMap.controller
 
-        myLocationOverlay.enableMyLocation()
-        myLocationOverlay.enableFollowLocation()
-        myLocationOverlay.isDrawAccuracyEnabled = true
-        myLocationOverlay.runOnFirstFix{
-            runOnUiThread{
-                controller.setCenter(myLocationOverlay.myLocation)
-                controller.animateTo(myLocationOverlay.myLocation)
-            }
-        }
+        //myLocationOverlay.enableMyLocation()
+        //myLocationOverlay.enableFollowLocation()
+        //myLocationOverlay.isDrawAccuracyEnabled = true
+        //myLocationOverlay.runOnFirstFix{
+        //runOnUiThread{
+        //        controller.setCenter(myLocationOverlay.myLocation)
+        //        controller.animateTo(myLocationOverlay.myLocation)
+        //    }
+        //}
 
-        // val mapPoint = GeoPoint(latitude, longitude)
+        val latitude = -33.44921597411058
+        val longitude = -70.66244814555698
+        val location = GeoPoint(latitude, longitude)
+
+        val marker = Marker(mMap)
+        marker.position = location
+        marker.title = "Marca personal"
+        mMap.overlays.add(marker)
+        mMap.invalidate()
         controller.setZoom(6.0)
         Log.d(TAG, "onCreate: ${controller.zoomIn()}")
         Log.d(TAG, "onCreate: ${controller.zoomOut()}")
 
-        // controller.animateTo(mapPoint)
-        mMap.overlays.add(myLocationOverlay)
+        controller.animateTo(location)
+        //mMap.overlays.add(myLocationOverlay)
 
         mMap.addMapListener(this)
         
